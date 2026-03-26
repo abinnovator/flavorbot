@@ -26,7 +26,36 @@ async function api(method, path, body = null, api) {
   const res = await fetch(`${BASE_URL}${path}`, options);
   return res.json();
 }
+const POLL_INTERVAL = 5 * 60 * 1000; // every 5 minutes
+let cachedStore = null;
 
+async function checkForStoreChanges(channelId) {
+    const store = await api("GET", "/store");
+    
+    if (!cachedStore) {
+        cachedStore = store;
+        return;
+    }
+
+    for (const item of store) {
+        const old = cachedStore.find(i => i.id === item.id);
+        if (!old) {
+            // New item added
+            const channel = client.channels.cache.get(channelId);
+            channel.send(`🆕 New item in the shop: **${item.name}**!`);
+        } else if (old.ticket_cost?.base_cost !== item.ticket_cost?.base_cost) {
+            // Price changed
+            const channel = client.channels.cache.get(channelId);
+            channel.send(`💰 **${item.name}** price changed: ${old.ticket_cost.base_cost} → ${item.ticket_cost.base_cost} cookies`);
+        } else if (old.stock !== item.stock) {
+            // Stock changed
+            const channel = client.channels.cache.get(channelId);
+            channel.send(`📦 **${item.name}** stock changed: ${old.stock} → ${item.stock}`);
+        }
+    }
+
+    cachedStore = store;
+}
 
 client.once(Events.ClientReady, c => {
     console.log(`Logged in as ${c.user.username}:`)
@@ -55,6 +84,9 @@ client.once(Events.ClientReady, c => {
     c.application.commands.create(getProject)
     c.application.commands.create(createProject)
     c.application.commands.create(getUser)
+    // Start store polling
+    const SHOP_CHANNEL_ID = "1486667145956950116";
+    setInterval(() => checkForStoreChanges(SHOP_CHANNEL_ID), POLL_INTERVAL);
 });
 async function getProject(id) {
   return api("GET", `/projects/${id}`);
