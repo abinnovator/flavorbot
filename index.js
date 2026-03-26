@@ -3,7 +3,7 @@ const {Client,Events, GatewayIntentBits,SlashCommandBuilder} = require("discord.
 
 
 const BASE_URL = "https://flavortown.hackclub.com/api/v1";
-const API_KEY = process.env.API_KEY;
+const API_KEY = process.env.FT_API_KEY;
 const Canvas = require('@napi-rs/canvas');
 
 async function api(method, path, body = null, api) {
@@ -22,34 +22,37 @@ async function api(method, path, body = null, api) {
 }
 
 
-const client = new Client({intents: []})
+client.once(Events.ClientReady, c => {
+    console.log(`Logged in as ${c.user.username}:`)
 
-    client.once(Events.ClientReady, c=>{
-        console.log(`Logged in as ${c.user.username}:`)
-
-        const getProject = new SlashCommandBuilder()
-        .setName('get-project')  // must be lowercase
+    // Register commands
+    const getProject = new SlashCommandBuilder()
+        .setName('get-project')
         .setDescription('Get a Flavortown project by ID')
         .addStringOption((option) => option.setName('projectid').setDescription('Add the project id').setRequired(true));
 
     const createProject = new SlashCommandBuilder()
-    .setName('create-project')  // must be lowercase
-    .setDescription('Create a Flavortown project.')
-    .addStringOption((option) => option.setName('project-title').setDescription('Add the project title').setRequired(true))
-    .addStringOption((option) => option.setName('ftapi').setDescription('Give your ft api').setRequired(true))
-    .addStringOption((option) => option.setName('project-description').setDescription('Add the project description'))
-    .addStringOption((option) => option.setName('repo-url').setDescription('Add the github repos url'))
-    .addStringOption((option) => option.setName('demo-url').setDescription('Add the demo videos or websites url'))
-    .addStringOption((option) => option.setName('ai-decl').setDescription('Tell what you used ai for in this project.'))
-    
+        .setName('create-project')
+        .setDescription('Create a Flavortown project.')
+        .addStringOption((option) => option.setName('project-title').setDescription('Add the project title').setRequired(true))
+        .addStringOption((option) => option.setName('ftapi').setDescription('Give your ft api').setRequired(true))
+        .addStringOption((option) => option.setName('project-description').setDescription('Add the project description'))
+        .addStringOption((option) => option.setName('repo-url').setDescription('Add the github repos url'))
+        .addStringOption((option) => option.setName('demo-url').setDescription('Add the demo videos or websites url'))
+        .addStringOption((option) => option.setName('ai-decl').setDescription('Tell what you used ai for in this project.'))
+
     const getUser = new SlashCommandBuilder()
-    .setName('get-user')  // must be lowercase
-    .setDescription('Get a ft user.')
-    .addStringOption((option) => option.setName('user-id').setDescription('the id of the user').setRequired(true))
+        .setName('get-user')
+        .setDescription('Get a ft user.')
+        .addStringOption((option) => option.setName('user-id').setDescription('the id of the user').setRequired(true))
+
     client.application.commands.create(getProject)
     client.application.commands.create(createProject)
     client.application.commands.create(getUser)
 
+    // Start store polling
+    const SHOP_CHANNEL_ID = "YOUR_CHANNEL_ID_HERE";
+    setInterval(() => checkForStoreChanges(SHOP_CHANNEL_ID), POLL_INTERVAL);
 });
 async function getProject(id) {
   return api("GET", `/projects/${id}`);
@@ -69,6 +72,7 @@ client.on(Events.InteractionCreate, async interaction => {
         const projectId = interaction.options.getString('projectid');
         await interaction.deferReply();
         const project = await getProject(projectId);
+        console.log(project)
         await interaction.editReply(`Project Title: ${project.title}\n Description: ${project.description}\nShippied?: ${project.ship_status}\nRepo: ${project.repo_url}\nDemo: ${project.demo_url}\nReadme: ${project.readme_url}`);
     }
 
@@ -104,7 +108,36 @@ client.on(Events.InteractionCreate, async interaction => {
     await interaction.editReply(`**${user.display_name}**\nCookies: ${user.cookies ?? 'hidden'}\nProjects: ${user.project_ids?.length ?? 0}\nSlack_id:${user.slack_id}`);
 }
 })
+const POLL_INTERVAL = 5 * 60 * 1000; // every 5 minutes
+let cachedStore = null;
 
+async function checkForStoreChanges(channelId) {
+    const store = await api("GET", "/store");
+    
+    if (!cachedStore) {
+        cachedStore = store;
+        return;
+    }
+
+    for (const item of store) {
+        const old = cachedStore.find(i => i.id === item.id);
+        if (!old) {
+            // New item added
+            const channel = client.channels.cache.get(channelId);
+            channel.send(`🆕 New item in the shop: **${item.name}**!`);
+        } else if (old.ticket_cost?.base_cost !== item.ticket_cost?.base_cost) {
+            // Price changed
+            const channel = client.channels.cache.get(channelId);
+            channel.send(`💰 **${item.name}** price changed: ${old.ticket_cost.base_cost} → ${item.ticket_cost.base_cost} cookies`);
+        } else if (old.stock !== item.stock) {
+            // Stock changed
+            const channel = client.channels.cache.get(channelId);
+            channel.send(`📦 **${item.name}** stock changed: ${old.stock} → ${item.stock}`);
+        }
+    }
+
+    cachedStore = store;
+}
 
 
 client.login(token)
