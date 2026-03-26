@@ -1,4 +1,4 @@
-# 🍗 Flavorbot
+#  Flavorbot
 
 A Discord bot for interacting with the [Flavortown](https://flavortown.hackclub.com) API — Hack Club's project shipping platform.
 

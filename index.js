@@ -4,6 +4,7 @@ const {Client,Events, GatewayIntentBits,SlashCommandBuilder} = require("discord.
 
 const BASE_URL = "https://flavortown.hackclub.com/api/v1";
 const API_KEY = process.env.API_KEY;
+const Canvas = require('@napi-rs/canvas');
 
 async function api(method, path, body = null, api) {
   const options = {
@@ -68,7 +69,7 @@ client.on(Events.InteractionCreate, async interaction => {
         const projectId = interaction.options.getString('projectid');
         await interaction.deferReply();
         const project = await getProject(projectId);
-        await interaction.editReply(`Project: ${project.title}\n${project.description}`);
+        await interaction.editReply(`Project Title: ${project.title}\n Description: ${project.description}\nShippied?: ${project.ship_status}\nRepo: ${project.repo_url}\nDemo: ${project.demo_url}\nReadme: ${project.readme_url}`);
     }
 
     if (interaction.commandName === "create-project") {
@@ -82,13 +83,12 @@ client.on(Events.InteractionCreate, async interaction => {
         await interaction.deferReply();
 
         const project = await createProjectApi({ title, description, repo_url, demo_url, ai_declaration, userApiKey });
-
         if (project.error) {
             await interaction.editReply(`❌ Failed to create project: ${project.error}`);
             return;
         }
         console.log(project)
-        await interaction.editReply(`✅ Project created!\n**${project.title}**\n${project.description ?? ''}`);
+        await interaction.editReply(`✅ Project created!\n**Title:${project.title}**\nDescription: ${project.description ?? ''}**\Ship Status: ${project.ship_status}`);
     }
     if (interaction.commandName === "get-user"){
     const user_id = interaction.options.getString("user-id")
