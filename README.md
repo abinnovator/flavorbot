@@ -63,7 +63,6 @@ API-KEY=Your flavortown api key
 2. Open your account settings
 3. Copy your API key
 
-> ⚠️ Keep your API key private — don't share it or commit it to git.
 
 ## Tech Stack
 
