@@ -40,17 +40,14 @@ async function checkForStoreChanges(channelId) {
     for (const item of store) {
         const old = cachedStore.find(i => i.id === item.id);
         if (!old) {
-            // New item added
             const channel = client.channels.cache.get(channelId);
-            channel.send(`🆕 New item in the shop: **${item.name}**!`);
+            channel.send(`New item in the shop: **${item.name}**!`);
         } else if (old.ticket_cost?.base_cost !== item.ticket_cost?.base_cost) {
-            // Price changed
             const channel = client.channels.cache.get(channelId);
-            channel.send(`💰 **${item.name}** price changed: ${old.ticket_cost.base_cost} → ${item.ticket_cost.base_cost} cookies`);
+            channel.send(`🍪 **${item.name}** price changed: ${old.ticket_cost.base_cost} → ${item.ticket_cost.base_cost} cookies`);
         } else if (old.stock !== item.stock) {
-            // Stock changed
             const channel = client.channels.cache.get(channelId);
-            channel.send(`📦 **${item.name}** stock changed: ${old.stock} → ${item.stock}`);
+            channel.send(`**${item.name}** stock changed: ${old.stock} → ${item.stock}`);
         }
     }
 
@@ -60,7 +57,6 @@ async function checkForStoreChanges(channelId) {
 client.once(Events.ClientReady, c => {
     console.log(`Logged in as ${c.user.username}:`)
 
-    // Register commands
     const getProject = new SlashCommandBuilder()
         .setName('get-project')
         .setDescription('Get a Flavortown project by ID')
@@ -84,7 +80,6 @@ client.once(Events.ClientReady, c => {
     c.application.commands.create(getProject)
     c.application.commands.create(createProject)
     c.application.commands.create(getUser)
-    // Start store polling
     const SHOP_CHANNEL_ID = "1486667145956950116";
     setInterval(() => checkForStoreChanges(SHOP_CHANNEL_ID), POLL_INTERVAL);
 });
@@ -122,19 +117,19 @@ client.on(Events.InteractionCreate, async interaction => {
 
         const project = await createProjectApi({ title, description, repo_url, demo_url, ai_declaration, userApiKey });
         if (project.error) {
-            await interaction.editReply(`❌ Failed to create project: ${project.error}`);
+            await interaction.editReply(`Failed to create project: ${project.error}`);
             return;
         }
         console.log(project)
-        await interaction.editReply(`✅ Project created!\n**Title: ${project.title}**\nDescription: ${project.description ?? ''}\nShip Status: ${project.ship_status}`);
+        await interaction.editReply(`Project created!\n**Title: ${project.title}**\nDescription: ${project.description ?? ''}\nShip Status: ${project.ship_status}`);
     }
     if (interaction.commandName === "get-user"){
     const user_id = interaction.options.getString("user-id")
     await interaction.deferReply()
-    const user = await getUserApi(user_id)  // pass directly, not as object
+    const user = await getUserApi(user_id) 
     
     if (user.error) {
-        await interaction.editReply(`❌ User not found: ${user.error}`);
+        await interaction.editReply(`User not found: ${user.error}`);
         return;
     }
     console.log(user)
